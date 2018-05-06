@@ -180,7 +180,6 @@ main :: IO ()
 main = do
   db <- load "cbits/scheduled_stops.csv" scheduledStopIndexes
 
-  print scheduledStopIndexes
   let result1 = lookup #ssBusStoppointAtcocode "5220WDB47866" db
       result2 = lookup #ssBusScheduledJourneyCode 1231224 db
 
