@@ -27,11 +27,11 @@ data Indexer = Indexer B.ByteString (ForeignPtr CIndexer)
 
 foreign import ccall unsafe "makeIndexes" c_makeIndexes
   :: CString
-  -> CInt
-  -> Ptr CInt
-  -> CInt
-  -> Ptr CInt
-  -> CInt
+  -> W.Word32
+  -> Ptr W.Word32
+  -> W.Word32
+  -> Ptr W.Word32
+  -> W.Word32
   -> IO (Ptr CIndexer)
 
 foreign import ccall unsafe "&freeIndexes" c_freeIndexes
@@ -39,16 +39,16 @@ foreign import ccall unsafe "&freeIndexes" c_freeIndexes
 
 foreign import ccall unsafe "getLinesForIndex" c_getLinesForIndex
   :: Ptr CIndexer
-  -> CInt
+  -> W.Word32
   -> CString
-  -> IO (Ptr CInt)
+  -> IO (Ptr W.Word64)
 
 foreign import ccall unsafe "freeResult" c_freeResult
-  :: Ptr CInt
+  :: Ptr W.Word64
   -> IO ()
 
-toc :: Int -> CInt
-toc = CInt . fromIntegral
+fi :: (Integral a, Num b) => a -> b 
+fi = fromIntegral
 
 makeIndexes
   :: FilePath
@@ -60,33 +60,33 @@ makeIndexes file columnCount indexes sortedIndexes = do
   buffer <- mmapFileByteString file Nothing
 
   ptr <- withCString file $ \cfile -> do
-    withArray (map toc indexes) $ \indexes' -> do
-      withArray (map toc sortedIndexes) $ \sortedIndexes' -> do
-        c_makeIndexes cfile (toc columnCount) indexes' (toc $ length indexes) sortedIndexes' (toc $ length sortedIndexes)
+    withArray (map fi indexes) $ \indexes' -> do
+      withArray (map fi sortedIndexes) $ \sortedIndexes' -> do
+        c_makeIndexes cfile (fi columnCount) indexes' (fi $ length indexes) sortedIndexes' (fi $ length sortedIndexes)
   Indexer <$> pure buffer <*> newForeignPtr c_freeIndexes ptr
 
 getLinesForIndex
   :: Indexer
   -> Int
   -> B.ByteString
-  -> IO [[Int]]
+  -> IO [[W.Word64]]
 getLinesForIndex (Indexer _ indexer) index value = withForeignPtr indexer $ \ptr -> do
-  result <- B.useAsCString value $ \value' -> c_getLinesForIndex ptr (toc index) value'
-  CInt length <- peek result
-  array <- peekArray (fromIntegral length) result
+  result <- B.useAsCString value $ \value' -> c_getLinesForIndex ptr (fi index) value'
+  length <- peek result
+  array <- peekArray (fi length) result
   c_freeResult result
-  pure $ chunksOf 2 $ map fromIntegral $ drop 1 array
+  pure $ chunksOf 2 $ drop 1 array
 
 ranges :: Csv.FromRecord a
   => Csv.DecodeOptions
   -> B.ByteString
-  -> [[Int]]
+  -> [[W.Word64]]
   -> Either String (V.Vector a)
 ranges options bs rs = mconcat <$> sequence
   [ Csv.decodeWith options Csv.NoHeader
     $ BL.fromStrict
-    $ BU.unsafeTake length
-    $ BU.unsafeDrop start bs
+    $ BU.unsafeTake (fi length)
+    $ BU.unsafeDrop (fi start) bs
   | [start, length] <- rs
   ]
 

@@ -435,7 +435,7 @@ namespace io{
                         return file_line;
                 }
 
-                char*next_line(unsigned int &length){
+                char*next_line(uint64_t &length){
                         if(data_begin == data_end)
                                 return 0;
 
@@ -1128,7 +1128,7 @@ namespace io{
                                 column_names[i-1] = "col"+std::to_string(i);
                 }
 
-		char*next_line(unsigned int &length){
+		char*next_line(uint64_t &length){
 			return in.next_line(length);
 		}
 
@@ -1141,7 +1141,7 @@ namespace io{
 
                                 char*line;
                                 do{
-                                        const unsigned int &length = 0;
+                                        const uint64_t &length = 0;
                                         line = in.next_line(length);
                                         if(!line)
                                                 throw error::header_missing();
@@ -1220,7 +1220,7 @@ namespace io{
        
         public:
                 template<class ...ColType>
-                bool read_row(unsigned int &length, ColType& ...cols){
+                bool read_row(uint64_t &length, ColType& ...cols){
                         static_assert(sizeof...(ColType)>=column_count,
                                 "not enough columns specified");
                         static_assert(sizeof...(ColType)<=column_count,
@@ -1293,7 +1293,7 @@ namespace io{
                                 column_names[i-1] = "col"+std::to_string(i);
                 }
 
-                char*next_line(unsigned int &length){
+                char*next_line(uint64_t &length){
                         return in.next_line(length);
                 }
 
@@ -1345,7 +1345,7 @@ namespace io{
 
        
         public:
-                bool read_row(unsigned int &length, std::string *cols){
+                bool read_row(uint64_t &length, std::string *cols){
                         try{
                                 try{
        
