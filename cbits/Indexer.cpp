@@ -65,10 +65,6 @@ extern "C" {
 
       offset += length + 1;
       line++;
-
-      if (line % 1000000 == 0) {
-        break;
-      }
     }
 
     return api;
