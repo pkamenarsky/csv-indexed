@@ -3,6 +3,7 @@
 #include <forward_list>
 #include <experimental/optional>
 #include <unordered_map>
+#include <iostream>
 
 using namespace std;
 
@@ -64,6 +65,10 @@ extern "C" {
 
       offset += length + 1;
       line++;
+
+      if (line % 1000000 == 0) {
+        break;
+      }
     }
 
     return api;
@@ -85,6 +90,8 @@ extern "C" {
 
   int *getLinesForIndex(API *api, unsigned int index, const char *value) {
     std::experimental::optional<unsigned int> column = api->column_to_index[index];
+
+    std::cout << index << " " << value << "\n";
 
     if (column) {
       std::forward_list<int> list = api->indexes[*column][value];

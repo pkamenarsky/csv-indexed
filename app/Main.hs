@@ -8,6 +8,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -16,6 +17,8 @@
 
 module Main where
 
+import qualified Data.ByteString.Char8 as BC
+ 
 import qualified Data.Csv as Csv
 import qualified Data.Vector as V
 
@@ -26,6 +29,9 @@ import GHC.OverloadedLabels
 import GHC.TypeLits
 
 import qualified Indexer as I
+import           System.IO.Unsafe (unsafePerformIO)
+
+import Prelude hiding (lookup)
 
 data Person = Person
   { name :: String
@@ -64,16 +70,15 @@ type family HasField (n :: Nat) (a :: k) (b :: [(k, *)]) :: Maybe (*, Nat) where
   HasField n a (b : as) = HasField (n + 1) a as
   HasField n _ '[] = Nothing
 
-data Indexed (index :: [(Symbol, *)]) a = Indexed [Integer]
+data Indexes (index :: [(Symbol, *)]) a = Indexes [Int] [Int]
   deriving Show
 
-data DB (index :: [(Symbol, *)]) a = DB
-  deriving Show
+unindexed :: Indexes '[] a
+unindexed = Indexes [] []
 
-empty :: Indexed '[] a
-empty = Indexed []
+data DB (index :: [(Symbol, *)]) a = DB I.Indexer
 
-hash 
+index 
   :: forall a s n b index list
   . KnownSymbol s
   => KnownNat n
@@ -81,34 +86,77 @@ hash
   => HasField 0 s list ~ Just '(b, n)
   => Generic a
   => Field s
-  -> Indexed index a
-  -> Indexed ('(s, b) : index) a
-hash _ (Indexed indexes) = Indexed (natVal (Proxy :: Proxy n):indexes)
+  -> Indexes index a
+  -> Indexes ('(s, b) : index) a
+index _ (Indexes indexes sortedIndexes)
+  = Indexes (n:indexes) sortedIndexes
+  where
+    n = fromIntegral (natVal (Proxy :: Proxy n))
+
+sorted 
+  :: forall a s n b index list
+  . KnownSymbol s
+  => KnownNat n
+  => GRowToList (Rep a) ~ list
+  => HasField 0 s list ~ Just '(b, n)
+  => Generic a
+  => Field s
+  -> Indexes index a
+  -> Indexes ('(s, b) : index) a
+sorted _ (Indexes indexes sortedIndexes)
+  = Indexes indexes (n:sortedIndexes)
+  where
+    n = fromIntegral (natVal (Proxy :: Proxy n))
 
 load
- :: FilePath
- -> Indexed index a
+ :: forall a n index list
+ . KnownNat n
+ => GRowToList (Rep a) ~ list
+ => Length list ~ n
+ => FilePath
+ -> Indexes index a
  -> IO (DB index a)
-load = undefined
+load path (Indexes indexes sortedIndexes) =
+  DB <$> I.makeIndexes path n indexes sortedIndexes
+  where
+    n = fromIntegral (natVal (Proxy :: Proxy n))
 
-person :: Indexed '[] Person
-person = empty
-
-hashes
-  = hash #age3
-  $ hash #age person
-
-get
-  :: KnownSymbol s
+lookupWith
+  :: forall a b n s index list
+  . KnownSymbol s
   => KnownNat n
-  => HasField 0 s index ~ Just '(b, n)
+  => GRowToList (Rep a) ~ list
+  => HasField 0 s list ~ Just '(b, n)
+  => Generic a
+  => Csv.FromRecord a
+  => Csv.ToField b
+  => Csv.DecodeOptions
+  -> Field s
+  -> b
+  -> DB index a
+  -> Either String [a]
+lookupWith options _ value (DB indexer) = unsafePerformIO $ do
+  result <- I.getRecordsForIndex options indexer n (Csv.toField value)
+  pure $ V.toList <$> result
+  where
+    n = fromIntegral (natVal (Proxy :: Proxy n))
+
+lookup
+  :: forall a b n s index list
+  . KnownSymbol s
+  => KnownNat n
+  => GRowToList (Rep a) ~ list
+  => HasField 0 s list ~ Just '(b, n)
+  => Generic a
+  => Csv.FromRecord a
+  => Csv.ToField b
   => Field s
   -> b
-  -> Indexed index a -- DB
-  -> [a]
-get = undefined
+  -> DB index a
+  -> Either String [a]
+lookup field value db = lookupWith Csv.defaultDecodeOptions field value db
 
-test = get #age3 5 hashes
+--------------------------------------------------------------------------------
 
 data ScheduledStop = ScheduledStop
   { ssId :: Int
@@ -122,11 +170,18 @@ data ScheduledStop = ScheduledStop
   , ssUpdatedAt :: String
   } deriving (Eq, Generic, Csv.FromRecord, Show)
 
+scheduledStopIndexes :: Indexes _ ScheduledStop
+scheduledStopIndexes
+  = index  #ssBusStoppointAtcocode
+  $ sorted #ssBusScheduledJourneyCode
+    unindexed
+
 main :: IO ()
 main = do
-  indexer <- I.makeIndexes "cbits/scheduled_stops.csv" 9 [3] [1]
-  result <- I.getRecordsForIndex Csv.defaultDecodeOptions indexer 3 "5220WDB47866"
-  print (result :: Either String (V.Vector ScheduledStop))
-  result <- I.getRecordsForIndex Csv.defaultDecodeOptions indexer 1 "2"
-  print ((result :: Either String (V.Vector ScheduledStop)))
-  print (length <$> (result :: Either String (V.Vector ScheduledStop)))
+  db <- load "cbits/scheduled_stops.csv" scheduledStopIndexes
+
+  print scheduledStopIndexes
+  let result1 = lookup #ssBusStoppointAtcocode "5220WDB47866" db
+      result2 = lookup #ssBusScheduledJourneyCode 2 db
+
+  print result1

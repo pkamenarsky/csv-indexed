@@ -97,7 +97,7 @@ getRecordsForIndex
   -> Int
   -> B.ByteString
   -> IO (Either String (V.Vector a))
-getRecordsForIndex options indexer@(Indexer buffer _) index value =
+getRecordsForIndex options indexer@(Indexer buffer _) index value = do
   ranges options buffer <$> getLinesForIndex indexer index value
 
 chunksOf :: Int -> [e] -> [[e]]
