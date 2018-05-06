@@ -31,7 +31,7 @@ import GHC.TypeLits
 import qualified Indexer as I
 import           System.IO.Unsafe (unsafePerformIO)
 
-import Prelude hiding (lookup)
+import Prelude hiding (lookup, readFile)
 
 data Person = Person
   { name :: String
@@ -108,7 +108,7 @@ sorted _ (Indexes indexes sortedIndexes)
   where
     n = fromIntegral (natVal (Proxy :: Proxy n))
 
-load
+readFile
  :: forall a n index list
  . KnownNat n
  => GRowToList (Rep a) ~ list
@@ -116,7 +116,7 @@ load
  => FilePath
  -> Indexes index a
  -> IO (DB index a)
-load path (Indexes indexes sortedIndexes) =
+readFile path (Indexes indexes sortedIndexes) =
   DB <$> I.makeIndexes path n indexes sortedIndexes
   where
     n = fromIntegral (natVal (Proxy :: Proxy n))
@@ -178,7 +178,7 @@ scheduledStopIndexes
 
 main :: IO ()
 main = do
-  db <- load "cbits/scheduled_stops.csv" scheduledStopIndexes
+  db <- readFile "cbits/scheduled_stops.csv" scheduledStopIndexes
 
   let result1 = lookup #ssBusStoppointAtcocode "5220WDB47866" db
       result2 = lookup #ssBusScheduledJourneyCode 1231224 db
