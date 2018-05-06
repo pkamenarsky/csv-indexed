@@ -102,25 +102,21 @@ extern "C" {
       return result;
     }
     else {
-      return new int[1]{1};
-    }
-  }
+      column = api->column_to_sorted_index[index];
 
-  int *getLinesForSortedIndex(API *api, unsigned int sorted_index, const char *value) {
-    std::experimental::optional<unsigned int> column = api->column_to_sorted_index[sorted_index];
+      if (column) {
+        std::pair<int, int>* id = api->sorted_indexes[*column][value];
 
-    if (column) {
-      std::pair<int, int>* id = api->sorted_indexes[*column][value];
-
-      if (id != nullptr) {
-        return new int[2]{id->first, id->second};
+        if (id != nullptr) {
+          return new int[3]{3, id->first, id->second};
+        }
+        else {
+          return new int[1]{1};
+        }
       }
       else {
-        return new int[2]{-1, -1};
+        return new int[1]{1};
       }
-    }
-    else {
-      return new int[2]{-1, -1};
     }
   }
 

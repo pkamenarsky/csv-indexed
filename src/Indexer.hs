@@ -43,12 +43,6 @@ foreign import ccall unsafe "getLinesForIndex" c_getLinesForIndex
   -> CString
   -> IO (Ptr CInt)
 
-foreign import ccall unsafe "getLinesForSortedIndex" c_getLinesForSortedIndex
-  :: Ptr CIndexer
-  -> CInt
-  -> CString
-  -> IO (Ptr CInt)
-
 foreign import ccall unsafe "freeResult" c_freeResult
   :: Ptr CInt
   -> IO ()
@@ -105,32 +99,6 @@ getRecordsForIndex
   -> IO (Either String (V.Vector a))
 getRecordsForIndex options indexer@(Indexer buffer _) index value =
   ranges options buffer <$> getLinesForIndex indexer index value
-
-getLinesForSortedIndex
-  :: Indexer
-  -> Int
-  -> B.ByteString
-  -> IO (Maybe (Int, Int))
-getLinesForSortedIndex (Indexer buffer indexer) index value = withForeignPtr indexer $ \ptr -> do
-  result <- B.useAsCString value $ \value' -> c_getLinesForSortedIndex ptr (toc index) value'
-  [offset, length] <- peekArray 2 result
-  c_freeResult result
-  if offset == CInt (-1)
-    then pure Nothing
-    else pure $ Just (fromIntegral offset, fromIntegral length)
-
-getRecordsForSortedIndex
-  :: Csv.FromRecord a
-  => Csv.DecodeOptions
-  -> Indexer
-  -> Int
-  -> B.ByteString
-  -> IO (Either String (V.Vector a))
-getRecordsForSortedIndex options indexer@(Indexer buffer _) index value = do
-  lines <- getLinesForSortedIndex indexer index value
-  pure $ case lines of
-    Nothing -> Right V.empty
-    Just (offset, length) -> ranges options buffer [[offset, length]]
 
 chunksOf :: Int -> [e] -> [[e]]
 chunksOf i ls = map (take i) (build (splitter ls)) where

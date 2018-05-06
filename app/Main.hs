@@ -55,6 +55,10 @@ type family (a :: [k]) ++ (b :: [k]) :: [k] where
   '[] ++ bs = bs
   (a ': as) ++ bs = a ': (as ++ bs)
 
+type family Length (a :: [k]) :: Nat where 
+  Length (a : as) = 1 + Length as
+  Length '[] = 0
+
 type family HasField (n :: Nat) (a :: k) (b :: [(k, *)]) :: Maybe (*, Nat) where
   HasField n a ('(a, t) : as) = Just '(t, n)
   HasField n a (b : as) = HasField (n + 1) a as
@@ -123,6 +127,6 @@ main = do
   indexer <- I.makeIndexes "cbits/scheduled_stops.csv" 9 [3] [1]
   result <- I.getRecordsForIndex Csv.defaultDecodeOptions indexer 3 "5220WDB47866"
   print (result :: Either String (V.Vector ScheduledStop))
-  result <- I.getRecordsForSortedIndex Csv.defaultDecodeOptions indexer 1 "2"
+  result <- I.getRecordsForIndex Csv.defaultDecodeOptions indexer 1 "2"
   print ((result :: Either String (V.Vector ScheduledStop)))
   print (length <$> (result :: Either String (V.Vector ScheduledStop)))
