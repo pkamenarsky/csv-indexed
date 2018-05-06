@@ -41,7 +41,7 @@ extern "C" {
     }
 
     for (unsigned int i = 0; i < sorted_indexes_count; i++) {
-      api->column_to_sorted_index[indexes[i]] = std::experimental::optional<unsigned int>(i);
+      api->column_to_sorted_index[sorted_indexes[i]] = std::experimental::optional<unsigned int>(i);
     }
 
     while (in.read_row(length, api->cols)){

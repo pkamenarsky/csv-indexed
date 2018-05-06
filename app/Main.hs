@@ -105,5 +105,7 @@ test = get #age3 5 hashes
 main :: IO ()
 main = do
   indexer <- I.makeIndexes "cbits/scheduled_stops.csv" 9 [3] [1]
-  result <- I.getLinesForIndex indexer 0 "5220WDB47866"
+  result <- I.getLinesForIndex indexer 3 "5220WDB47866"
+  print result
+  result <- I.getLinesForSortedIndex indexer 1 "1"
   print result
