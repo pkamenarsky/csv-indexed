@@ -16,7 +16,7 @@ extern "C" {
     std::string *cols;
   };
 
-  API *makeIndices(
+  API *makeIndexes(
       const char *filename,
       int column_count,
       unsigned int *indexes,
@@ -59,7 +59,7 @@ extern "C" {
     return api;
   }
 
-  void destroyIndices(API *api) {
+  void freeIndexes(API *api) {
     delete [] api->indexes;
     delete [] api->cols;
 
@@ -98,5 +98,9 @@ extern "C" {
     else {
       return new int[2]{-1, -1};
     }
+  }
+
+  void freeResult(int *result) {
+    delete [] result;
   }
 }

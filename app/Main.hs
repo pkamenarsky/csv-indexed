@@ -6,6 +6,7 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -19,6 +20,8 @@ import Data.Proxy
 import GHC.Generics
 import GHC.OverloadedLabels
 import GHC.TypeLits
+
+import qualified Indexer as I
 
 data Person = Person
   { name :: String
@@ -101,4 +104,6 @@ test = get #age3 5 hashes
 
 main :: IO ()
 main = do
-  print hashes
+  indexer <- I.makeIndexes "cbits/scheduled_stops.csv" 9 [3] [1]
+  result <- I.getLinesForIndex indexer 0 "5220WDB47866"
+  print result
