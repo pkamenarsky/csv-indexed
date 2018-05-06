@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -14,6 +15,9 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 module Main where
+
+import qualified Data.Csv as Csv
+import qualified Data.Vector as V
 
 import Data.Proxy
 
@@ -102,10 +106,23 @@ get = undefined
 
 test = get #age3 5 hashes
 
+data ScheduledStop = ScheduledStop
+  { ssId :: Int
+  , ssBusScheduledJourneyCode :: Int
+  , ssScheduledStopType :: String
+  , ssBusStoppointAtcocode :: String
+  , ssPublicArrival :: Maybe String
+  , ssPublicDeparture :: Maybe String
+  , ssOrderNo :: Int
+  , ssCreatedAt :: String
+  , ssUpdatedAt :: String
+  } deriving (Eq, Generic, Csv.FromRecord, Show)
+
 main :: IO ()
 main = do
   indexer <- I.makeIndexes "cbits/scheduled_stops.csv" 9 [3] [1]
-  result <- I.getLinesForIndex indexer 3 "5220WDB47866"
-  print result
-  result <- I.getLinesForSortedIndex indexer 1 "1"
-  print result
+  result <- I.getRecordsForIndex Csv.defaultDecodeOptions indexer 3 "5220WDB47866"
+  print (result :: Either String (V.Vector ScheduledStop))
+  result <- I.getRecordsForSortedIndex Csv.defaultDecodeOptions indexer 1 "2"
+  print ((result :: Either String (V.Vector ScheduledStop)))
+  print (length <$> (result :: Either String (V.Vector ScheduledStop)))
