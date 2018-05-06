@@ -1,8 +1,8 @@
 #include "fast-cpp-csv-parser/csv.h"
 
 #include <forward_list>
+#include <experimental/optional>
 #include <unordered_map>
-#include <iostream>
 
 using namespace std;
 
@@ -13,6 +13,8 @@ extern "C" {
 
     std::unordered_map<std::string, std::forward_list<int>> *indexes;
     std::unordered_map<std::string, std::pair<int, int>*> *sorted_indexes;
+    std::unordered_map<unsigned int, std::experimental::optional<unsigned int>> column_to_index;
+    std::unordered_map<unsigned int, std::experimental::optional<unsigned int>> column_to_sorted_index;
     std::string *cols;
   };
 
@@ -33,6 +35,14 @@ extern "C" {
     api->indexes = new std::unordered_map<std::string, std::forward_list<int>>[indexes_count];
     api->sorted_indexes = new std::unordered_map<std::string, std::pair<int, int>*>[sorted_indexes_count];
     api->cols = new std::string[column_count];
+
+    for (unsigned int i = 0; i < indexes_count; i++) {
+      api->column_to_index[indexes[i]] = std::experimental::optional<unsigned int>(i);
+    }
+
+    for (unsigned int i = 0; i < sorted_indexes_count; i++) {
+      api->column_to_sorted_index[indexes[i]] = std::experimental::optional<unsigned int>(i);
+    }
 
     while (in.read_row(length, api->cols)){
       for (int i = 0; i < indexes_count; i++) {
@@ -74,26 +84,40 @@ extern "C" {
   }
 
   int *getLinesForIndex(API *api, unsigned int index, const char *value) {
-    const std::forward_list<int> list = api->indexes[index][value];
+    std::experimental::optional<unsigned int> column = api->column_to_index[index];
 
-    int length = std::distance(std::begin(list), std::end(list));
-    int *result = new int[length + 1];
-    int i = 1;
+    if (column) {
+      std::forward_list<int> list = api->indexes[*column][value];
 
-    result[0] = length + 1;
+      int length = std::distance(std::begin(list), std::end(list));
+      int *result = new int[length + 1];
+      int i = 1;
 
-    for (auto e: list) {
-      result[i++] = e;
+      result[0] = length + 1;
+
+      for (auto e: list) {
+        result[i++] = e;
+      }
+
+      return result;
     }
-
-    return result;
+    else {
+      return new int[1]{1};
+    }
   }
 
   int *getLinesForSortedIndex(API *api, unsigned int sorted_index, const char *value) {
-    std::pair<int, int>* id = api->sorted_indexes[sorted_index][value];
+    std::experimental::optional<unsigned int> column = api->column_to_sorted_index[sorted_index];
 
-    if (id != nullptr) {
-      return new int[2]{id->first, id->second};
+    if (column) {
+      std::pair<int, int>* id = api->sorted_indexes[*column][value];
+
+      if (id != nullptr) {
+        return new int[2]{id->first, id->second};
+      }
+      else {
+        return new int[2]{-1, -1};
+      }
     }
     else {
       return new int[2]{-1, -1};
