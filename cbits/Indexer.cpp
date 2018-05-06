@@ -52,14 +52,14 @@ extern "C" {
       }
 
       for (int i = 0; i < sorted_indexes_count; i++) {
-        std::pair<int, int>* current = api->sorted_indexes[i][api->cols[sorted_indexes[i]]];
+        auto it = api->sorted_indexes[i].find(api->cols[sorted_indexes[i]]);
 
-        if (current == nullptr) {
-          current = new std::pair<int, int>(offset, length + 1);
+        if (it == api->sorted_indexes[i].end()) {
+          std::pair<int, int>* current = new std::pair<int, int>(offset, length + 1);
           api->sorted_indexes[i][api->cols[sorted_indexes[i]]] = current;
         }
         else {
-          current->second += length + 1;
+          it->second->second += length + 1;
         }
       }
 
@@ -87,36 +87,43 @@ extern "C" {
   int *getLinesForIndex(API *api, unsigned int index, const char *value) {
     std::experimental::optional<unsigned int> column = api->column_to_index[index];
 
-    std::cout << index << " " << value << "\n";
-
     if (column) {
-      std::forward_list<int> list = api->indexes[*column][value];
+      auto list = api->indexes[*column].find(value);
 
-      int length = std::distance(std::begin(list), std::end(list));
-      int *result = new int[length + 1];
-      int i = 1;
+      if (list != api->indexes[*column].end()) {
+        int length = std::distance(std::begin(list->second), std::end(list->second));
+        int *result = new int[length + 1];
+        int i = 1;
 
-      result[0] = length + 1;
+        result[0] = length + 1;
 
-      for (auto e: list) {
-        result[i++] = e;
+        for (auto e: list->second) {
+          result[i++] = e;
+        }
+
+        return result;
       }
-
-      return result;
+      // not found
+      else {
+        return new int[1]{1};
+      }
     }
+    // not such column, try sorted indexes
     else {
       column = api->column_to_sorted_index[index];
 
       if (column) {
-        std::pair<int, int>* id = api->sorted_indexes[*column][value];
+        auto id = api->sorted_indexes[*column].find(value);
 
-        if (id != nullptr) {
-          return new int[3]{3, id->first, id->second};
+        if (id != api->sorted_indexes[*column].end()) {
+          return new int[3]{3, id->second->first, id->second->second};
         }
+        // not found
         else {
           return new int[1]{1};
         }
       }
+      // not such column
       else {
         return new int[1]{1};
       }

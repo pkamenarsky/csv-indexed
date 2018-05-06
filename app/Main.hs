@@ -182,6 +182,6 @@ main = do
 
   print scheduledStopIndexes
   let result1 = lookup #ssBusStoppointAtcocode "5220WDB47866" db
-      result2 = lookup #ssBusScheduledJourneyCode 2 db
+      result2 = lookup #ssBusScheduledJourneyCode 1231224 db
 
-  print result1
+  print result2
