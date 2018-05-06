@@ -2,25 +2,28 @@ module Indexer where
 
 import qualified Data.Aeson as A
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Unsafe as BU
+import qualified Data.Csv as Csv
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.Text as T
 
 import qualified Data.Word as W
+import qualified Data.Vector as V
 
-import Foreign.Marshal.Array
-import Foreign.ForeignPtr
-import Foreign.Ptr
-import Foreign.Storable
-import Foreign.C.Types
-import Foreign.C.String
+import           Foreign.Marshal.Array
+import           Foreign.ForeignPtr
+import           Foreign.Ptr
+import           Foreign.Storable
+import           Foreign.C.Types
+import           Foreign.C.String
 
-import System.IO.MMap
-import System.IO.Unsafe (unsafePerformIO)
+import           System.IO.MMap
+import           System.IO.Unsafe (unsafePerformIO)
 
-data Indexer'
-type Indexer = ForeignPtr Indexer'
+data CIndexer
+data Indexer = Indexer B.ByteString (ForeignPtr CIndexer)
 
 foreign import ccall unsafe "makeIndexes" c_makeIndexes
   :: CString
@@ -29,19 +32,19 @@ foreign import ccall unsafe "makeIndexes" c_makeIndexes
   -> CInt
   -> Ptr CInt
   -> CInt
-  -> IO (Ptr Indexer')
+  -> IO (Ptr CIndexer)
 
 foreign import ccall unsafe "&freeIndexes" c_freeIndexes
-  :: FunPtr (Ptr Indexer' -> IO ())
+  :: FunPtr (Ptr CIndexer -> IO ())
 
 foreign import ccall unsafe "getLinesForIndex" c_getLinesForIndex
-  :: Ptr Indexer'
+  :: Ptr CIndexer
   -> CInt
   -> CString
   -> IO (Ptr CInt)
 
 foreign import ccall unsafe "getLinesForSortedIndex" c_getLinesForSortedIndex
-  :: Ptr Indexer'
+  :: Ptr CIndexer
   -> CInt
   -> CString
   -> IO (Ptr CInt)
@@ -60,36 +63,74 @@ makeIndexes
   -> [Int]
   -> IO Indexer
 makeIndexes file columnCount indexes sortedIndexes = do
+  buffer <- mmapFileByteString file Nothing
+
   ptr <- withCString file $ \cfile -> do
     withArray (map toc indexes) $ \indexes' -> do
       withArray (map toc sortedIndexes) $ \sortedIndexes' -> do
         c_makeIndexes cfile (toc columnCount) indexes' (toc $ length indexes) sortedIndexes' (toc $ length sortedIndexes)
-  newForeignPtr c_freeIndexes ptr
+  Indexer <$> pure buffer <*> newForeignPtr c_freeIndexes ptr
 
 getLinesForIndex
   :: Indexer
   -> Int
   -> B.ByteString
   -> IO [[Int]]
-getLinesForIndex indexer index value = withForeignPtr indexer $ \ptr -> do
+getLinesForIndex (Indexer _ indexer) index value = withForeignPtr indexer $ \ptr -> do
   result <- B.useAsCString value $ \value' -> c_getLinesForIndex ptr (toc index) value'
   CInt length <- peek result
   array <- peekArray (fromIntegral length) result
   c_freeResult result
   pure $ chunksOf 2 $ map fromIntegral $ drop 1 array
 
+ranges :: Csv.FromRecord a
+  => Csv.DecodeOptions
+  -> B.ByteString
+  -> [[Int]]
+  -> Either String (V.Vector a)
+ranges options bs rs = mconcat <$> sequence
+  [ Csv.decodeWith options Csv.NoHeader
+    $ BL.fromStrict
+    $ BU.unsafeTake length
+    $ BU.unsafeDrop start bs
+  | [start, length] <- rs
+  ]
+
+getRecordsForIndex
+  :: Csv.FromRecord a
+  => Csv.DecodeOptions
+  -> Indexer
+  -> Int
+  -> B.ByteString
+  -> IO (Either String (V.Vector a))
+getRecordsForIndex options indexer@(Indexer buffer _) index value =
+  ranges options buffer <$> getLinesForIndex indexer index value
+
 getLinesForSortedIndex
   :: Indexer
   -> Int
   -> B.ByteString
   -> IO (Maybe (Int, Int))
-getLinesForSortedIndex indexer index value = withForeignPtr indexer $ \ptr -> do
+getLinesForSortedIndex (Indexer buffer indexer) index value = withForeignPtr indexer $ \ptr -> do
   result <- B.useAsCString value $ \value' -> c_getLinesForSortedIndex ptr (toc index) value'
   [offset, length] <- peekArray 2 result
   c_freeResult result
   if offset == CInt (-1)
     then pure Nothing
     else pure $ Just (fromIntegral offset, fromIntegral length)
+
+getRecordsForSortedIndex
+  :: Csv.FromRecord a
+  => Csv.DecodeOptions
+  -> Indexer
+  -> Int
+  -> B.ByteString
+  -> IO (Either String (V.Vector a))
+getRecordsForSortedIndex options indexer@(Indexer buffer _) index value = do
+  lines <- getLinesForSortedIndex indexer index value
+  pure $ case lines of
+    Nothing -> Right V.empty
+    Just (offset, length) -> ranges options buffer [[offset, length]]
 
 chunksOf :: Int -> [e] -> [[e]]
 chunksOf i ls = map (take i) (build (splitter ls)) where
