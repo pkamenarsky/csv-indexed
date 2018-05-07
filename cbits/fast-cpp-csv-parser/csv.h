@@ -1141,7 +1141,7 @@ namespace io{
 
                                 char*line;
                                 do{
-                                        const uint64_t &length = 0;
+                                        uint64_t &length = 0;
                                         line = in.next_line(length);
                                         if(!line)
                                                 throw error::header_missing();
@@ -1295,13 +1295,6 @@ namespace io{
 
                 char*next_line(uint64_t &length){
                         return in.next_line(length);
-                }
-
-                bool has_column(const std::string&name) const {
-                        return col_order.end() != std::find(
-                                col_order.begin(), col_order.end(),
-                                        std::find(std::begin(column_names), std::end(column_names), name)
-                                - std::begin(column_names));
                 }
 
                 void set_file_name(const std::string&file_name){
