@@ -1,0 +1,81 @@
+-- This file has been generated from package.yaml by hpack version 0.28.2.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: d9485912f324015bb4a98662d2f1a8d48ca91b1021bdac88f617d49d3bfbce99
+
+name:           csv-indexed
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/githubuser/csv-indexed#readme>
+homepage:       https://github.com/githubuser/csv-indexed#readme
+bug-reports:    https://github.com/githubuser/csv-indexed/issues
+author:         Author name here
+maintainer:     example@example.com
+copyright:      2018 Author name here
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+cabal-version:  >= 1.10
+extra-source-files:
+    ChangeLog.md
+    README.md
+extra-source-files:
+    cbits/*.cpp
+  , cbits/fast-cpp-csv-parser/*.h
+  , cbits/fast-cpp-csv-parser/README.md
+  , cbits/fast-cpp-csv-parser/LICENSE
+
+source-repository head
+  type: git
+  location: https://github.com/githubuser/csv-indexed
+
+library
+  c-sources: cbits/Indexer.cpp
+  cc-options: -O2 -std=c++14
+  extra-libraries: stdc++ pthread
+  exposed-modules:
+      Lib
+    , Indexer
+  other-modules:
+      Paths_csv_indexed
+  hs-source-dirs:
+      src
+  build-depends:
+      base >=4.7 && <5
+    , aeson
+    , bytestring
+    , cassava
+    , containers
+    , mmap
+    , text
+    , unordered-containers
+    , vector
+  default-language: Haskell2010
+
+executable csv-indexed-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_csv_indexed
+  hs-source-dirs:
+      app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , csv-indexed
+    , bytestring
+    , cassava
+    , vector
+  default-language: Haskell2010
+
+test-suite csv-indexed-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_csv_indexed
+  hs-source-dirs:
+      test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , csv-indexed
+  default-language: Haskell2010
