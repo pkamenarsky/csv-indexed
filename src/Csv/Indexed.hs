@@ -122,11 +122,12 @@ readFile path (Indexes indexes sortedIndexes) =
     n = fromIntegral (natVal (Proxy :: Proxy n))
 
 lookupWith
-  :: forall a b n s index list
+  :: forall a b n s field index list
   . KnownSymbol s
   => KnownNat n
   => GRowToList (Rep a) ~ list
   => HasField 0 s list ~ Just '(b, n)
+  => HasField 0 s index ~ Just field
   => Generic a
   => Csv.FromRecord a
   => Csv.ToField b
@@ -142,11 +143,12 @@ lookupWith options _ value (DB indexer) = unsafePerformIO $ do
     n = fromIntegral (natVal (Proxy :: Proxy n))
 
 lookup
-  :: forall a b n s index list
+  :: forall a b n s field index list
   . KnownSymbol s
   => KnownNat n
   => GRowToList (Rep a) ~ list
   => HasField 0 s list ~ Just '(b, n)
+  => HasField 0 s index ~ Just field
   => Generic a
   => Csv.FromRecord a
   => Csv.ToField b
