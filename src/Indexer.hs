@@ -20,7 +20,6 @@ import           Foreign.C.Types
 import           Foreign.C.String
 
 import           System.IO.MMap
-import           System.IO.Unsafe (unsafePerformIO)
 
 data CIndexer
 data Indexer = Indexer B.ByteString (ForeignPtr CIndexer)

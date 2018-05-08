@@ -29,7 +29,7 @@ import GHC.OverloadedLabels
 import GHC.TypeLits
 
 import qualified Indexer as I
-import           System.IO.Unsafe (unsafePerformIO)
+import           System.IO.Unsafe (unsafeDupablePerformIO)
 
 import Prelude hiding (lookup, readFile)
 
@@ -121,6 +121,7 @@ readFile path (Indexes indexes sortedIndexes) =
   where
     n = fromIntegral (natVal (Proxy :: Proxy n))
 
+{-# NOINLINE lookupWith #-}
 lookupWith
   :: forall a b n s field index list
   . KnownSymbol s
@@ -136,12 +137,13 @@ lookupWith
   -> b
   -> DB index a
   -> Either String [a]
-lookupWith options _ value (DB indexer) = unsafePerformIO $ do
+lookupWith options _ value (DB indexer) = unsafeDupablePerformIO $ do
   result <- I.getRecordsForIndex options indexer n (Csv.toField value)
   pure $ V.toList <$> result
   where
     n = fromIntegral (natVal (Proxy :: Proxy n))
 
+{-# NOINLINE lookup #-}
 lookup
   :: forall a b n s field index list
   . KnownSymbol s
