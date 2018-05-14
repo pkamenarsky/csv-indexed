@@ -46,6 +46,7 @@ library
     , bytestring
     , cassava
     , containers
+    , lrucaching
     , mmap
     , text
     , unordered-containers

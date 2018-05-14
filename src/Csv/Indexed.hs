@@ -17,11 +17,14 @@
 
 module Csv.Indexed where
 
+import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
  
 import qualified Data.Csv as Csv
+import qualified Data.LruCache.IO as LRU
 import qualified Data.Vector as V
 
+import Data.Monoid ((<>))
 import Data.Proxy
 
 import GHC.Generics
@@ -29,6 +32,7 @@ import GHC.OverloadedLabels
 import GHC.TypeLits
 
 import qualified Indexer as I
+import           Unsafe.Coerce (unsafeCoerce)
 import           System.IO.Unsafe (unsafeDupablePerformIO)
 
 import Prelude hiding (lookup, readFile)
@@ -68,7 +72,7 @@ data Indexes (index :: [(Symbol, *)]) a = Indexes [Int] [Int]
 unindexed :: Indexes '[] a
 unindexed = Indexes [] []
 
-data DB (index :: [(Symbol, *)]) a = DB I.Indexer
+data DB (index :: [(Symbol, *)]) a = DB I.Indexer (LRU.LruHandle B.ByteString ())
 
 index 
   :: forall a s n b index list
@@ -106,10 +110,11 @@ readFile
  => GRowToList (Rep a) ~ list
  => Length list ~ n
  => FilePath
+ -> Int
  -> Indexes index a
  -> IO (DB index a)
-readFile path (Indexes indexes sortedIndexes) =
-  DB <$> I.makeIndexes path n indexes sortedIndexes
+readFile path items (Indexes indexes sortedIndexes) =
+  DB <$> I.makeIndexes path n indexes sortedIndexes <*> LRU.newLruHandle items
   where
     n = fromIntegral (natVal (Proxy :: Proxy n))
 
@@ -129,8 +134,8 @@ lookupWith
   -> b
   -> DB index a
   -> Either String [a]
-lookupWith options _ value (DB indexer) = unsafeDupablePerformIO $ do
-  result <- I.getRecordsForIndex options indexer n (Csv.toField value)
+lookupWith options _ value (DB indexer cache) = unsafeDupablePerformIO $ do
+  result <- unsafeCoerce $ LRU.cached cache (BC.pack (show n) <> ":" <> Csv.toField value) $ unsafeCoerce (I.getRecordsForIndex options indexer n (Csv.toField value) :: IO (Either String (V.Vector a)))
   pure $ V.toList <$> result
   where
     n = fromIntegral (natVal (Proxy :: Proxy n))

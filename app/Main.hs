@@ -65,7 +65,7 @@ randomReqs db n acc = do
 
 main :: IO ()
 main = do
-  db <- readFile "/home/phil/data/20180418/out/tapi/scheduled_stops.csv" scheduledStopIndexes
+  db <- readFile "/home/phil/data/20180418/out/tapi/scheduled_stops.csv" 1000 scheduledStopIndexes
 
   let result1 = lookup #ssBusStoppointAtcocode "5220WDB47866" db
       result2 = lookup #ssBusScheduledJourneyCode 2 db
