@@ -33,14 +33,6 @@ import           System.IO.Unsafe (unsafeDupablePerformIO)
 
 import Prelude hiding (lookup, readFile)
 
-data Person = Person
-  { name :: String
-  , age :: Int
-  , age1:: Int
-  , age2:: Int
-  , age3:: Int
-  } deriving Generic
-
 data Field (a :: Symbol) = Field
 
 instance l ~ l' => IsLabel (l :: Symbol) (Field l') where
