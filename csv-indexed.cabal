@@ -21,6 +21,7 @@ extra-source-files:
     README.md
 extra-source-files:
     cbits/*.cpp
+  , cbits/*.h
   , cbits/fast-cpp-csv-parser/*.h
   , cbits/fast-cpp-csv-parser/README.md
   , cbits/fast-cpp-csv-parser/LICENSE

@@ -1,5 +1,3 @@
-// Checkout at: 3b439a6
-//
 // Copyright: (2012-2015) Ben Strasser <code@ben-strasser.net>
 // License: BSD-3
 //
@@ -435,7 +433,7 @@ namespace io{
                         return file_line;
                 }
 
-                char*next_line(uint64_t &length){
+                char*next_line(){
                         if(data_begin == data_end)
                                 return 0;
 
@@ -482,7 +480,6 @@ namespace io{
                                 buffer[line_end-1] = '\0';
 
                         char*ret = buffer.get() + data_begin;
-                        length = line_end - data_begin;
                         data_begin = line_end+1;
                         return ret;
                 }
@@ -1128,8 +1125,8 @@ namespace io{
                                 column_names[i-1] = "col"+std::to_string(i);
                 }
 
-		char*next_line(uint64_t &length){
-			return in.next_line(length);
+		char*next_line(){
+			return in.next_line();
 		}
 
                 template<class ...ColNames>
@@ -1141,8 +1138,7 @@ namespace io{
 
                                 char*line;
                                 do{
-                                        uint64_t &length = 0;
-                                        line = in.next_line(length);
+                                        line = in.next_line();
                                         if(!line)
                                                 throw error::header_missing();
                                 }while(comment_policy::is_comment(line));
@@ -1220,7 +1216,7 @@ namespace io{
        
         public:
                 template<class ...ColType>
-                bool read_row(uint64_t &length, ColType& ...cols){
+                bool read_row(ColType& ...cols){
                         static_assert(sizeof...(ColType)>=column_count,
                                 "not enough columns specified");
                         static_assert(sizeof...(ColType)<=column_count,
@@ -1230,7 +1226,7 @@ namespace io{
        
                                         char*line;
                                         do{
-                                                line = in.next_line(length);
+                                                line = in.next_line();
                                                 if(!line)
                                                         return false;
                                         }while(comment_policy::is_comment(line));
@@ -1239,120 +1235,6 @@ namespace io{
                                                 (line, row, col_order);
                
                                         parse_helper(0, cols...);
-                                }catch(error::with_file_name&err){
-                                        err.set_file_name(in.get_truncated_file_name());
-                                        throw;
-                                }
-                        }catch(error::with_file_line&err){
-                                err.set_file_line(in.get_file_line());
-                                throw;
-                        }
-
-                        return true;
-                }
-        };
-
-        template<class trim_policy = trim_chars<' ', '\t'>,
-                 class quote_policy = no_quote_escape<','>,
-                 class overflow_policy = throw_on_overflow,
-                 class comment_policy = no_comment
-        >
-        class CSVReaderDyn{
-        private:
-                LineReader in;
-                unsigned int column_count;
-
-                char** row;
-                std::string *column_names;
-
-                std::vector<int>col_order;
-
-                template<class ...ColNames>
-                void set_column_names(std::string s, ColNames...cols){
-                        column_names[column_count-sizeof...(ColNames)-1] = std::move(s);
-                        set_column_names(std::forward<ColNames>(cols)...);
-                }
-
-                void set_column_names(){}
-
-
-        public:
-                CSVReaderDyn() = delete;
-                CSVReaderDyn(const CSVReaderDyn&) = delete;
-                CSVReaderDyn&operator=(const CSVReaderDyn&);
-
-                template<class ...Args>
-                explicit CSVReaderDyn(unsigned int column_count, Args&&...args):in(std::forward<Args>(args)...), column_count(column_count) {
-                        row = new char*[column_count];
-                        column_names = new std::string[column_count];
-                        std::fill(row, row+column_count, nullptr);
-                        col_order.resize(column_count);
-                        for(unsigned i=0; i<column_count; ++i)
-                                col_order[i] = i;
-                        for(unsigned i=1; i<=column_count; ++i)
-                                column_names[i-1] = "col"+std::to_string(i);
-                }
-
-                char*next_line(uint64_t &length){
-                        return in.next_line(length);
-                }
-
-                void set_file_name(const std::string&file_name){
-                        in.set_file_name(file_name);
-                }
-
-                void set_file_name(const char*file_name){
-                        in.set_file_name(file_name);
-                }
-
-                const char*get_truncated_file_name()const{
-                        return in.get_truncated_file_name();
-                }
-
-                void set_file_line(unsigned file_line){
-                        in.set_file_line(file_line);
-                }
-
-                unsigned get_file_line()const{
-                        return in.get_file_line();
-                }
-
-        private:
-                void parse_helper(std::size_t){}
-
-                void parse_helper(std::string *cols){                        
-                        for (int r = 0; r < column_count; r++) {
-                                try{
-                                        try{
-                                                ::io::detail::parse<overflow_policy>(row[r], cols[r]);
-                                        }catch(error::with_column_content&err){
-                                                err.set_column_content(row[r]);
-                                                throw;
-                                        }
-                                }catch(error::with_column_name&err){
-                                        err.set_column_name(column_names[r].c_str());
-                                        throw;
-                                }
-                        }
-                }
-
-       
-        public:
-                bool read_row(uint64_t &length, std::string *cols){
-                        try{
-                                try{
-       
-                                        char*line;
-                                        do{
-                                                line = in.next_line(length);
-                                                if(!line)
-                                                        return false;
-                                        }while(comment_policy::is_comment(line));
-                                       
-                                        detail::parse_line<trim_policy, quote_policy>
-                                                (line, row, col_order);
-               
-                                        parse_helper(cols);
                                 }catch(error::with_file_name&err){
                                         err.set_file_name(in.get_truncated_file_name());
                                         throw;
