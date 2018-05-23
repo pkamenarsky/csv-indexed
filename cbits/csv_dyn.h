@@ -74,9 +74,8 @@ namespace io{
 
                 char*line;
                 do{
-                  length = in.data_begin;
                   line = in.next_line();
-                  length = in.data_begin - length - 1;
+                  length = in.data_begin - (line - in.buffer.get()) - 1;
                   if(!line)
                     return false;
                 }while(comment_policy::is_comment(line));
